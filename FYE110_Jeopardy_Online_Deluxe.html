@@ -1,0 +1,507 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>FYE‑110 Jeopardy – Online Deluxe (All Features)</title>
+<style>
+  :root{
+    --jeopardy-blue:#001f5b; --jeopardy-blue2:#003fa6; --tile:#002f86; --gold:#c9a400; --used:#0e224d;
+    --ok:#2ecc71; --bad:#e74c3c; --accent:#12c2e9;
+  }
+  html,body{height:100%;}
+  body{margin:0;background:var(--jeopardy-blue);color:#fff;font-family:Segoe UI,Arial,Helvetica,sans-serif;}
+  header{padding:14px 18px;display:flex;gap:16px;align-items:center;justify-content:space-between;background:linear-gradient(90deg,#001846,#003fa6);} 
+  header h1{margin:0;font-size:26px;font-weight:700}
+  #controls{display:flex;gap:10px;flex-wrap:wrap}
+  button, .btn{background:var(--gold);color:#000;border:none;border-radius:6px;padding:10px 14px;font-weight:700;cursor:pointer}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .outline{background:transparent;color:#fff;border:2px solid var(--gold)}
+  .panel{background:#0009;border:1px solid #ffffff30;border-radius:10px;padding:10px;margin:10px}
+  .grid{display:grid;gap:5px}
+  .board{max-width:1200px;margin:10px auto}
+  .board .category{background:var(--jeopardy-blue2);border:2px solid var(--gold);padding:12px;text-align:center;font-weight:800}
+  .board .tile{background:var(--tile);border:2px solid var(--gold);padding:20px;text-align:center;font-size:28px;font-weight:800;cursor:pointer;transition:.2s}
+  .board .tile:hover{transform:translateY(-2px);box-shadow:0 6px 14px rgba(0,0,0,.3)}
+  .board .tile.used{background:var(--used);color:#8b8b8b;cursor:default;transform:none;box-shadow:none}
+  .sectionTitle{font-size:28px;text-align:center;margin:22px 0 8px 0}
+
+  /* Question overlay */
+  #overlay{position:fixed;inset:0;background:rgba(0,0,0,.93);display:none;align-items:center;justify-content:center;z-index:50}
+  #overlayCard{max-width:1000px;margin:20px;background:#021028;border:2px solid #ffffff25;border-radius:14px;padding:24px;box-shadow:0 12px 30px rgba(0,0,0,.45)}
+  #qCategory{opacity:.8}
+  #qText{font-size:32px;margin:12px 0;}
+  #aText{font-size:28px;color:var(--gold);display:none;margin:12px 0}
+  #timer{font-size:22px;opacity:.85}
+  #buzzerStatus{font-size:18px;margin-top:6px}
+  #overlayFooter{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+
+  /* Scoreboard */
+  #scoreArea{max-width:1200px;margin:10px auto;display:grid;grid-template-columns:1.5fr 1fr;gap:10px}
+  #players{background:#0009;border:1px solid #ffffff30;border-radius:10px;padding:10px}
+  #players h3{margin:4px 0 10px 0}
+  #players table{width:100%;border-collapse:collapse}
+  #players th,#players td{border-bottom:1px solid #ffffff20;padding:6px 4px}
+  #players input[type=text], #players input[type=number]{width:100%;box-sizing:border-box;border-radius:6px;border:1px solid #ffffff30;padding:6px}
+  .key{display:inline-block;background:#1b3a90;border:1px solid #ffffff30;border-radius:6px;padding:2px 6px;font-size:12px;margin-left:4px}
+  .positive{color:#32ff9c}.negative{color:#ff8b8b}
+
+  #host{background:#0009;border:1px solid #ffffff30;border-radius:10px;padding:10px}
+  #host h3{margin:4px 0 10px 0}
+
+  /* Final Jeopardy */
+  #finalOverlay{position:fixed;inset:0;background:rgba(0,0,0,.96);display:none;z-index:60;color:#fff}
+  #finalWrap{max-width:1100px;margin:24px auto;background:#021028;border:2px solid #ffffff25;border-radius:14px;padding:24px}
+  #finalTimer{font-size:26px}
+  .fjGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .fjRow{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:6px;align-items:center}
+  .fjRow input{padding:6px;border-radius:6px;border:1px solid #ffffff30}
+
+  /* Confetti */
+  #confetti{position:fixed;inset:0;pointer-events:none;display:none}
+
+</style>
+</head>
+<body>
+<header>
+  <h1>FYE‑110 Jeopardy – Online Deluxe</h1>
+  <div id="controls">
+    <button id="btnStartJeop">Start Jeopardy</button>
+    <button id="btnStartDouble" class="outline">Start Double Jeopardy</button>
+    <button id="btnFinal" class="outline">Final Jeopardy</button>
+    <button id="btnReset" class="outline">Reset Game</button>
+  </div>
+</header>
+
+<div id="scoreArea">
+  <div id="players" class="panel">
+    <h3>Players (20) &nbsp; <span style="font-weight:400">Keyboard buzzer keys shown next to each name.</span></h3>
+    <table id="playerTable">
+      <thead><tr><th>#</th><th>Name</th><th>Key</th><th>Score</th><th>Elim</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div id="host" class="panel">
+    <h3>Host Tools</h3>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+      <button id="lockBuzz" class="btn">Lock Buzzers</button>
+      <button id="unlockBuzz" class="btn outline">Unlock Buzzers</button>
+      <button id="clearBuzz" class="btn outline">Clear Buzz</button>
+      <button id="randomDD" class="btn outline">Randomize Daily Doubles</button>
+    </div>
+    <div>
+      <div><strong>Current Buzz:</strong> <span id="buzzedName">None</span></div>
+      <div id="currentInfo" style="margin-top:6px;opacity:.8"></div>
+      <div id="helpKeys" style="margin-top:8px;font-size:14px;opacity:.85"></div>
+    </div>
+  </div>
+</div>
+
+<h2 class="sectionTitle">JEOPARDY ROUND</h2>
+<div id="board1" class="board grid"></div>
+
+<h2 class="sectionTitle">DOUBLE JEOPARDY ROUND</h2>
+<div id="board2" class="board grid"></div>
+
+<!-- Question overlay -->
+<div id="overlay">
+  <div id="overlayCard">
+    <div id="qCategory"></div>
+    <div id="qValue" style="opacity:.8"></div>
+    <div id="qText"></div>
+    <div id="aText"></div>
+    <div id="timer"></div>
+    <div id="buzzerStatus"></div>
+    <div id="overlayFooter">
+      <button id="btnShowAnswer">Show Answer</button>
+      <button id="btnCorrect" style="background:var(--ok)">Correct (+)</button>
+      <button id="btnIncorrect" style="background:var(--bad);color:#fff">Incorrect (–)</button>
+      <button id="btnClose">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Final Jeopardy -->
+<canvas id="confetti"></canvas>
+<div id="finalOverlay">
+  <div id="finalWrap">
+    <h2>Final Jeopardy</h2>
+    <div style="margin:6px 0 10px 0;opacity:.85">Category: Success in Higher Education</div>
+    <div id="finalClue" style="font-size:26px;margin:10px 0 6px 0">This mindset believes success results from effort, resilience, and problem‑solving, not fixed ability.</div>
+    <div id="finalAnswer" style="display:none;color:var(--gold);font-size:24px;margin-top:8px">What is an open (course‑of‑action) mindset?</div>
+    <div style="margin:10px 0">
+      <button id="btnFJShow" class="btn">Reveal Answer</button>
+      <button id="btnFJStart" class="btn outline">Start 30‑sec Timer</button>
+      <span id="finalTimer" style="margin-left:10px;opacity:.85"></span>
+    </div>
+    <div class="fjGrid" id="fjGrid"></div>
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+      <button id="btnApplyFJ" class="btn">Apply Results</button>
+      <button id="btnCloseFJ" class="btn outline">Close Final</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================= DATA (derived from your course modules) ================= */
+// Round 1 Categories
+const categories1 = [
+  "Goal Setting Basics",
+  "SMART Goals",
+  "Time Management",
+  "Avoiding Bad Habits",
+  "College Success Foundations",
+  "Resources & Communication"
+];
+const values1 = [100,200,300,400,500];
+
+const board1 = {
+  "Goal Setting Basics": {
+    100: {q:"This term describes a 'desired result you want to have achieved at some specific point in the future.'", a:"What is a goal?"},
+    200: {q:"These goals take one day to six months to accomplish and complement long‑term goals.", a:"What are short‑term goals?"},
+    300: {q:"These take longer than six months and require patience, planning, and dedication.", a:"What are long‑term goals?"},
+    400: {q:"Defined as the willpower to do what you think is right despite temptations.", a:"What is self‑discipline?"},
+    500: {q:"These emotional or mental factors cause you to doubt yourself or ignore your goals.", a:"What are internal obstacles?"}
+  },
+  "SMART Goals": {
+    100: {q:"The S in SMART stands for this.", a:"What is Specific?"},
+    200: {q:"SMART goals must be this to track progress.", a:"What is measurable?"},
+    300: {q:"This SMART component ensures the goal can reasonably be completed.", a:"What is achievable?"},
+    400: {q:"This SMART element ensures the goal fits your abilities and resources.", a:"What is realistic?"},
+    500: {q:"Setting this type of goal helps improve your chances of achieving your goals.", a:"What is a SMART goal?"}
+  },
+  "Time Management": {
+    100: {q:"The practice of organizing your behaviors to assure maximum productivity.", a:"What is time management?"},
+    200: {q:"Time you use to take care of yourself.", a:"What is maintenance time?"},
+    300: {q:"Blocks of time committed for a dedicated activity.", a:"What is committed time?"},
+    400: {q:"Time that remains after maintenance and committed responsibilities have been met.", a:"What is discretionary time?"},
+    500: {q:"Time spent on something you later wish you had not.", a:"What is wasted time?"}
+  },
+  "Avoiding Bad Habits": {
+    100: {q:"The act of delaying acting on important priorities.", a:"What is procrastination?"},
+    200: {q:"These environments should be avoided while studying.", a:"What are distracting environments?"},
+    300: {q:"This planning method involves looking ahead weeks and scheduling backwards.", a:"What is planning backwards?"},
+    400: {q:"These tasks have high importance and should be scheduled first each day.", a:"What are high‑priority tasks?"},
+    500: {q:"A common reason for procrastination is believing the task will be this.", a:"What is difficult?"}
+  },
+  "College Success Foundations": {
+    100: {q:"Mental energy that directs behavior.", a:"What is motivation?"},
+    200: {q:"Motivators that come from internal values.", a:"What are internal motivators?"},
+    300: {q:"A declaration of what you want to be, accomplish, and how you will do it.", a:"What is a personal mission statement?"},
+    400: {q:"This mindset focuses on solutions, effort, and resilience.", a:"What is a course‑of‑action/open mindset?"},
+    500: {q:"Taking responsibility for your life, academic work, and communication.", a:"What is academic professionalism?"}
+  },
+  "Resources & Communication": {
+    100: {q:"This office helps students prepare for jobs in their field.", a:"What is the Career Center?"},
+    200: {q:"A syllabus lists these courses you must take before others.", a:"What are prerequisites?"},
+    300: {q:"This is the language style you should use in emails to instructors.", a:"What is professional language?"},
+    400: {q:"This support person helps with academic planning.", a:"What is an academic counselor?"},
+    500: {q:"Knowing how to ask for help, seek information, and locate resources.", a:"What is self‑advocacy?"}
+  }
+};
+
+// Round 2 Categories
+const categories2 = [
+  "Advanced Goal Setting",
+  "High‑Level SMART Analysis",
+  "Professional Time Mastery",
+  "Academic Success Strategies",
+  "Student Health & Wellness",
+  "Campus Life & Social Connection"
+];
+const values2 = [200,400,600,800,1000];
+
+const board2 = {
+  "Advanced Goal Setting": {
+    200: {q:"Long‑term goals are often built from these smaller steps.", a:"What are short‑term goals?"},
+    400: {q:"These factors interfere with goal achievement despite strong internal motivation.", a:"What are external obstacles?"},
+    600: {q:"Rewards strengthen this positive loop between progress and confidence.", a:"What is the self‑esteem cycle?"},
+    800: {q:"Tracking weekly is essential for success with this type of goal.", a:"What are short‑term academic goals?"},
+    1000: {q:"Choosing goals that support your emotional well‑being builds this.", a:"What is self‑esteem?"}
+  },
+  "High‑Level SMART Analysis": {
+    200: {q:"Compared to vague goals, the SMART framework improves this.", a:"What is goal achievement?"},
+    400: {q:"A goal scheduled for completion by a specific date is this.", a:"What is time‑based?"},
+    600: {q:"‘Become a homeowner in five years’ is SMART because of this element.", a:"What is time‑based?"},
+    800: {q:"A goal that fits your abilities and resources is this.", a:"What is realistic?"},
+    1000: {q:"The five questions who/what/when/where/why relate to this element.", a:"What is specific?"}
+  },
+  "Professional Time Mastery": {
+    200: {q:"This skill is critical to ‘upward mobility’ on the job.", a:"What is time management?"},
+    400: {q:"This type of time should be scheduled first each week.", a:"What is committed time?"},
+    600: {q:"Breaking tasks into multiple chunks primarily helps with this.", a:"What is managing large tasks?"},
+    800: {q:"Prioritizing tasks requires identifying this first.", a:"What is task importance?"},
+    1000: {q:"Combining a to‑do list with a calendar primarily improves this.", a:"What is productivity?"}
+  },
+  "Academic Success Strategies": {
+    200: {q:"Responsible communication includes doing this during class.", a:"What is asking questions?"},
+    400: {q:"In college, late work is usually this.", a:"What is not accepted?"},
+    600: {q:"This campus resource provides tutoring support.", a:"What is the tutoring center?"},
+    800: {q:"Identifying grades as motivators means they are in this category.", a:"What are external motivators?"},
+    1000: {q:"Recovering from mistakes quickly describes this trait.", a:"What is resilience?"}
+  },
+  "Student Health & Wellness": {
+    200: {q:"This health type refers to a positive sense of well‑being.", a:"What is emotional health?"},
+    400: {q:"Adults typically need this many hours of sleep.", a:"What is 6–8 hours?"},
+    600: {q:"Short breaks while studying help increase this mental factor.", a:"What is clarity or focus?"},
+    800: {q:"Recognizing mind‑wandering and returning to breathing describes this practice.", a:"What is meditation?"},
+    1000: {q:"Isolation, self‑doubt, and stress are common signs of this emotional state.", a:"What is loneliness?"}
+  },
+  "Campus Life & Social Connection": {
+    200: {q:"This strategy helps you integrate into campus culture and build support.", a:"What is participating in campus activities?"},
+    400: {q:"Hearing others and finding common ground defines this process.", a:"What is conflict resolution?"},
+    600: {q:"Connecting with peers who support your goals is called this.", a:"What is networking?"},
+    800: {q:"Joining clubs and organizations primarily promotes this type of growth.", a:"What is social development?"},
+    1000: {q:"An academic, social, and service mix describes these.", a:"What are types of participation?"}
+  }
+};
+
+/* ================= Helpers & State ================= */
+const state = {
+  round: 1,
+  lock: false,
+  buzzed: null,
+  current: null,
+  dailydoubles: {r1: new Set(), r2: new Set()},
+  players: [],
+};
+const keyMap = [
+  '1','2','3','4','5','6','7','8','9','0','q','w','e','r','t','y','u','i','o','p'
+];
+
+function initPlayers(){
+  const tbody = document.querySelector('#playerTable tbody');
+  tbody.innerHTML = '';
+  for(let i=0;i<20;i++){
+    state.players[i] = {name:`Player ${i+1}`,score:0,elim:false,key:keyMap[i],wager:0, fjCorrect:false};
+    const tr=document.createElement('tr');
+    tr.innerHTML = `
+      <td>${i+1}</td>
+      <td><input type="text" value="${state.players[i].name}" data-i="${i}" class="pname"></td>
+      <td><span class="key">${keyMap[i].toUpperCase()}</span></td>
+      <td><span class="pscore" data-i="${i}">0</span></td>
+      <td><input type="checkbox" class="pelim" data-i="${i}"></td>`;
+    tbody.appendChild(tr);
+  }
+  tbody.addEventListener('input', (e)=>{
+    if(e.target.classList.contains('pname')){
+      const i=+e.target.dataset.i; state.players[i].name=e.target.value;
+    }
+  });
+  tbody.addEventListener('change',(e)=>{
+    if(e.target.classList.contains('pelim')){
+      const i=+e.target.dataset.i; state.players[i].elim=e.target.checked; updateScores();
+    }
+  });
+  document.getElementById('helpKeys').textContent = 'Keyboard buzzers: '+keyMap.map((k,i)=>`${state.players[i].name}=${k.toUpperCase()}`).join('  ');
+}
+
+function updateScores(){
+  document.querySelectorAll('.pscore').forEach(span=>{
+    const i=+span.dataset.i; const s=state.players[i].score; span.textContent = s;
+    span.className = 'pscore ' + (s>=0?'positive':'negative');
+  });
+  // Auto‑eliminate below −2000
+  state.players.forEach((p,i)=>{
+    const chk=document.querySelector(`.pelim[data-i="${i}"]`);
+    if(p.score < -2000){ chk.checked = true; p.elim = true; }
+  });
+}
+
+/* ================= Build Boards ================= */
+function buildBoard(containerId, cats, vals, data, round){
+  const wrap = document.getElementById(containerId);
+  wrap.classList.add('grid');
+  wrap.style.gridTemplateColumns = 'repeat(6, 1fr)';
+  wrap.innerHTML = '';
+  // categories
+  cats.forEach(cat=>{
+    const d=document.createElement('div'); d.className='category'; d.textContent=cat; wrap.appendChild(d);
+  });
+  // tiles
+  vals.forEach(val=>{
+    cats.forEach(cat=>{
+      const tile=document.createElement('div'); tile.className='tile'; tile.textContent='$'+val; tile.dataset.cat=cat; tile.dataset.val=val; tile.dataset.round=round;
+      tile.addEventListener('click',()=>openTile(tile,data)); wrap.appendChild(tile);
+    });
+  });
+}
+
+function randomizeDailyDoubles(){
+  state.dailydoubles.r1.clear(); state.dailydoubles.r2.clear();
+  // 1 in round1, 2 in round2
+  const r1Tiles = categories1.flatMap(cat=>values1.map(v=>`${cat}|${v}`));
+  const r2Tiles = categories2.flatMap(cat=>values2.map(v=>`${cat}|${v}`));
+  state.dailydoubles.r1.add(r1Tiles[Math.floor(Math.random()*r1Tiles.length)]);
+  while(state.dailydoubles.r2.size<2){
+    state.dailydoubles.r2.add(r2Tiles[Math.floor(Math.random()*r2Tiles.length)]);
+  }
+  alert('Daily Doubles randomized! 1 in Jeopardy, 2 in Double Jeopardy.');
+}
+
+/* ================= Tile Open & Buzzer ================= */
+function openTile(tile,data){
+  if(tile.classList.contains('used')) return;
+  const cat=tile.dataset.cat; const val=+tile.dataset.val; const round=+tile.dataset.round;
+  state.current = {tile, cat, val, round, data, dd: false, answered:false};
+  const key = `${cat}|${val}`;
+  const isDD = (round===1?state.dailydoubles.r1:state.dailydoubles.r2).has(key);
+  state.current.dd = isDD;
+  document.getElementById('qCategory').textContent = cat + (isDD? '  —  DAILY DOUBLE!':'');
+  document.getElementById('qValue').textContent = '$'+val + (round===2?' (Double Jeopardy)':'');
+  document.getElementById('qText').textContent = data[cat][val].q;
+  document.getElementById('aText').style.display = 'none';
+  document.getElementById('timer').textContent = '';
+  document.getElementById('buzzerStatus').textContent = 'Buzzers unlocked';
+  state.lock = false; state.buzzed = null; document.getElementById('buzzedName').textContent='None';
+  document.getElementById('overlay').style.display='flex';
+  if(isDD){
+    handleDailyDouble();
+  }
+}
+
+function handleDailyDouble(){
+  state.lock = true; // lock until wager set
+  const pIndex = prompt('DAILY DOUBLE! Enter player number (1-20) who will wager:');
+  if(!pIndex) { state.lock=false; return; }
+  const i = Math.max(1, Math.min(20, parseInt(pIndex))) - 1;
+  const maxWager = Math.max(state.players[i].score, state.current.val);
+  const w = prompt(`Enter ${state.players[i].name}'s wager (max ${maxWager}):`, Math.min(1000,maxWager));
+  const wager = Math.max(0, Math.min(parseInt(w||'0'), maxWager));
+  state.lock=false; state.buzzed = i; document.getElementById('buzzedName').textContent = state.players[i].name+` (wager $${wager})`;
+  state.current.ddWager = wager;
+}
+
+// Keyboard buzzer
+window.addEventListener('keydown', (e)=>{
+  if(!state.current || state.lock) return;
+  const key=e.key.toLowerCase(); const idx=keyMap.indexOf(key);
+  if(idx>-1){
+    if(state.players[idx].elim) return;
+    if(state.buzzed===null){
+      state.buzzed = idx; document.getElementById('buzzedName').textContent = state.players[idx].name; document.getElementById('buzzerStatus').textContent = `Buzz: ${state.players[idx].name}`;
+      startAnswerTimer();
+    }
+  }
+});
+
+function startAnswerTimer(){
+  let t=7; document.getElementById('timer').textContent = `Answer timer: ${t}s`;
+  const id=setInterval(()=>{ t--; document.getElementById('timer').textContent = `Answer timer: ${t}s`; if(t<=0){ clearInterval(id); document.getElementById('timer').textContent='Time!'; wrong(); }
+  },1000);
+  state.current.timerId=id;
+}
+
+function showAnswer(){
+  document.getElementById('aText').textContent = state.current.data[state.current.cat][state.current.val].a; 
+  document.getElementById('aText').style.display = 'block';
+}
+function correct(){ right(); }
+function incorrect(){ wrong(); }
+
+function right(){
+  if(state.current.answered) return; state.current.answered=true;
+  const val = state.current.dd? (state.current.ddWager||0) : state.current.val;
+  if(state.buzzed!==null){
+    state.players[state.buzzed].score += val;
+  }
+  endQuestion(true);
+}
+
+function wrong(){
+  if(state.current.answered) return; // allow rebounds: clear buzz and let others buzz
+  if(state.buzzed!==null){
+    const val = state.current.dd? (state.current.ddWager||0) : state.current.val;
+    state.players[state.buzzed].score -= val;
+  }
+  state.buzzed=null; document.getElementById('buzzedName').textContent='Open';
+  document.getElementById('buzzerStatus').textContent='Rebound: buzzers unlocked';
+  state.lock=false;
+  updateScores();
+}
+
+function endQuestion(closeNow){
+  try{ clearInterval(state.current.timerId);}catch(e){}
+  updateScores();
+  state.current.tile.classList.add('used');
+  state.current.tile.onclick=null;
+  if(closeNow) closeOverlay();
+}
+
+function closeOverlay(){
+  document.getElementById('overlay').style.display='none';
+  state.current=null; state.buzzed=null; document.getElementById('buzzedName').textContent='None';
+}
+
+/* ================= Final Jeopardy ================= */
+function openFinal(){
+  buildFinalTable(); document.getElementById('finalOverlay').style.display='block';
+}
+function buildFinalTable(){
+  const grid=document.getElementById('fjGrid'); grid.innerHTML='';
+  state.players.forEach((p,i)=>{
+    if(p.elim) return; const row=document.createElement('div'); row.className='fjRow';
+    row.innerHTML = `<input type="text" value="${p.name}" disabled> <input type="number" min="0" id="w${i}" placeholder="Wager"> <select id="c${i}"><option value="correct">Correct</option><option value="wrong">Wrong</option></select> <input type="number" id="n${i}" placeholder="New Score" disabled>`;
+    grid.appendChild(row);
+  });
+}
+let fjTimerId=null, fjTime=30;
+function startFinalTimer(){
+  fjTime=30; document.getElementById('finalTimer').textContent=`${fjTime}s`; startThink();
+  fjTimerId=setInterval(()=>{ fjTime--; document.getElementById('finalTimer').textContent=`${fjTime}s`; if(fjTime<=0){ clearInterval(fjTimerId); stopThink(); document.getElementById('finalTimer').textContent='Time!'; } },1000);
+}
+function revealFinal(){ document.getElementById('finalAnswer').style.display='block'; }
+function applyFinal(){
+  state.players.forEach((p,i)=>{
+    if(p.elim) return; const w=document.getElementById('w'+i); if(!w) return; const wager=parseInt(w.value||'0');
+    const verdict=document.getElementById('c'+i).value;
+    if(verdict==='correct') p.score += Math.abs(wager); else p.score -= Math.abs(wager);
+    const newScore=document.getElementById('n'+i); if(newScore) newScore.value=p.score;
+  });
+  updateScores();
+  celebrateWinner();
+}
+function closeFinal(){ document.getElementById('finalOverlay').style.display='none'; }
+
+/* ================= Audio via WebAudio (no files needed) ================= */
+let AC = null;
+function ensureAC(){ if(!AC) AC=new (window.AudioContext||window.webkitAudioContext)(); }
+function tone(freq,dur,type='sine',gain=0.05){ ensureAC(); const o=AC.createOscillator(); const g=AC.createGain(); o.type=type; o.frequency.value=freq; g.gain.value=gain; o.connect(g); g.connect(AC.destination); o.start(); o.stop(AC.currentTime+dur); }
+function playDing(){ tone(880,0.15,'sine',0.08); setTimeout(()=>tone(1320,0.15,'sine',0.08),160); }
+function playBuzz(){ tone(110,0.5,'square',0.06); }
+let thinkId=null; function startThink(){ ensureAC(); let on=true; thinkId=setInterval(()=>{ tone(on?440:392,0.12,'triangle',0.03); on=!on; },300);} 
+function stopThink(){ if(thinkId) clearInterval(thinkId); thinkId=null; }
+
+/* ================= Confetti ================= */
+function celebrateWinner(){
+  const canvas=document.getElementById('confetti'); const ctx=canvas.getContext('2d'); canvas.style.display='block'; canvas.width=innerWidth; canvas.height=innerHeight;
+  const pieces=Array.from({length:250},()=>({x:Math.random()*canvas.width,y:-20-Math.random()*canvas.height,vx:(Math.random()-0.5)*2,vy:2+Math.random()*3,size:4+Math.random()*6,color:`hsl(${Math.random()*360},80%,60%)`}));
+  let t=0; function step(){ ctx.clearRect(0,0,canvas.width,canvas.height); pieces.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; ctx.fillStyle=p.color; ctx.fillRect(p.x,p.y,p.size,p.size); if(p.y>canvas.height+20) p.y=-20; }); if(t++<400) requestAnimationFrame(step); else canvas.style.display='none'; }
+  step();
+}
+
+/* ================= Wiring Buttons ================= */
+
+document.getElementById('btnStartJeop').onclick=()=>{ state.round=1; window.scrollTo({top:document.getElementById('board1').offsetTop-60,behavior:'smooth'}); };
+document.getElementById('btnStartDouble').onclick=()=>{ state.round=2; window.scrollTo({top:document.getElementById('board2').offsetTop-60,behavior:'smooth'}); };
+document.getElementById('btnFinal').onclick=openFinal;
+document.getElementById('btnReset').onclick=()=>{ if(confirm('Reset game and scores?')) location.reload(); };
+
+// overlay buttons
+btnShowAnswer.onclick=showAnswer; btnCorrect.onclick=()=>{ playDing(); correct(); }; btnIncorrect.onclick=()=>{ playBuzz(); incorrect(); }; btnClose.onclick=closeOverlay;
+
+// host tools
+lockBuzz.onclick=()=>state.lock=true; unlockBuzz.onclick=()=>state.lock=false; clearBuzz.onclick=()=>{state.buzzed=null;document.getElementById('buzzedName').textContent='None';}; randomDD.onclick=randomizeDailyDoubles;
+
+// final buttons
+btnFJStart.onclick=startFinalTimer; btnFJShow.onclick=revealFinal; btnApplyFJ.onclick=applyFinal; btnCloseFJ.onclick=closeFinal;
+
+/* ================= Init ================= */
+initPlayers();
+buildBoard('board1', categories1, values1, board1, 1);
+buildBoard('board2', categories2, values2, board2, 2);
+
+</script>
+</body>
+</html>
